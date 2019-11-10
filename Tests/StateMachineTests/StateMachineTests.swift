@@ -17,9 +17,9 @@ final class StateMachineTests: XCTestCase {
             initial: .green,
             context: nil,
             states: [
-                .green: [.on: [.timer: .simple(.yellow)]],
-                .yellow: [.on: [.timer: .simple(.red)]],
-                .red: [.on: [.timer: .simple(.green)]],
+                .green: [.on([.timer: .simple(.yellow)])],
+                .yellow: [.on([.timer: .simple(.red)])],
+                .red: [.on([.timer: .simple(.green)])],
             ]
         )
         
@@ -35,28 +35,28 @@ final class StateMachineTests: XCTestCase {
             context: nil,
             states: [
                 .green: [
-                    .on: [
+                    .on([
                         .timer: .withContext((
                             target: .yellow,
                             action: { _ in ["color": "yellow"]}
                         ))
-                    ]
+                    ])
                 ],
                 .yellow: [
-                    .on: [
+                    .on([
                         .timer: .withContext((
                             target: .red,
                             action: { _ in ["color": "red"]}
                         ))
-                    ]
+                    ])
                 ],
                 .red: [
-                    .on: [
+                    .on([
                         .timer: .withContext((
                             target: .green,
                             action: { _ in ["color": "green"]}
                         ))
-                    ]
+                    ])
                 ],
             ]
         )
@@ -81,10 +81,11 @@ final class StateMachineTests: XCTestCase {
             initial: .green,
             context: nil,
             states: [
-                .green: [.on: [.timer: .simple(.yellow)]],
-                .yellow: [.on: [.timer: .simple(.red)]],
-                .red: [.on: [.timer: .simple(.green)]],
-            ]
+                .green: [.on([.timer: .simple(.yellow)])],
+                .yellow: [.on([.timer: .simple(.red)])],
+                .red: [.on([.timer: .simple(.green)])],
+            ],
+            actions: nil
         )
         
         var machine = Machine(forChart: chart)
@@ -114,26 +115,29 @@ final class StateMachineTests: XCTestCase {
             context: 0,
             states: [
                 .idle: [
-                    .on: [.fetch: .simple(.loading)]
+                    .on([.fetch: .simple(.loading)])
                 ],
                 .loading: [
-                    .on: [
+                    .on([
                         .resolve: .simple(.success),
                         .reject: .simple(.failure),
-                    ]
+                    ])
                 ],
                 .success: nil,
-                .cancelled: nil,
+                .cancelled: [
+                    .type("final")
+                ],
                 .failure: [
-                    .on: [
+                    .on([
                         .retry: .withContext((
                             target: .loading,
                             action: { $0 as! Int + 1 }
                         )),
                         .reject: .simple(.cancelled)
-                    ]
+                    ])
                 ],
-            ]
+            ],
+            actions: nil
         )
         
         var machine = Machine(forChart: fetchChart)
@@ -165,6 +169,51 @@ final class StateMachineTests: XCTestCase {
         let result7 = machine.transition(state: result5, event: .resolve)
         XCTAssertEqual(result7, .success)
         XCTAssertEqual(machine.currentState, .success)
+    }
+    
+    func testMachineActions() {
+        enum CounterStates {
+            case active
+        }
+        enum CounterActions {
+            case increment
+            case decrement
+        }
+        
+        let chart: Chart<CounterStates, CounterActions> = (
+            initial: .active,
+            context: 0,
+            states: [
+                .active: [
+                    .on([
+                        .increment: .withActions((
+                            target: .active,
+                            actions: ["increment"]
+                        )),
+                        .decrement: .withActions((
+                            target: .active,
+                            actions: ["decrement"]
+                        ))
+                    ])
+                ]
+            ],
+            actions: [
+                "increment": { $0 as! Int + 1 },
+                "decrement": { $0 as! Int - 1 }
+            ]
+        )
+        
+        var machine = Machine(forChart: chart)
+        XCTAssertEqual(machine.context as! Int, 0)
+        
+        _ = machine.transition(state: .active, event: .increment)
+        XCTAssertEqual(machine.context as! Int, 1)
+        
+        _ = machine.transition(state: .active, event: .increment)
+        XCTAssertEqual(machine.context as! Int, 2)
+        
+        _ = machine.transition(state: .active, event: .decrement)
+        XCTAssertEqual(machine.context as! Int, 1)
     }
     
     static var allTests = [
