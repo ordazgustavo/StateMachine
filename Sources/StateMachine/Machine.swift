@@ -28,29 +28,32 @@ public struct Machine<S:Hashable, A:Hashable> {
         self.currentState = chart.initial
     }
     
-    public mutating func transition(state: S, event: A) -> S {
+    public mutating func transition(state: S, event actionType: A) -> S {
         if !alive {
             return self.currentState
         }
         
         guard let transition = self.states[state] else { return state }
         
-        guard let action = transition?[.on] else {
+        guard let event = transition?[.on] else {
             self.alive = false
             return state
         }
         
-        switch action {
+        guard let target = event[actionType] else {
+            return state
+        }
+        
+        switch target {
         case .simple(let simple):
-            guard let target = simple[event] else { return state }
-            self.currentState = target
-            return target
+            self.currentState = simple
+            return simple
             
         case .withContext(let withContext):
-            guard let (target, ctx) = withContext[event] else { return state }
-            self.context = ctx(self.context)
-            self.currentState = target
-            return target
+            let (tgt, action) = withContext
+            self.context = action(self.context)
+            self.currentState = tgt
+            return tgt
         }
     }
 }

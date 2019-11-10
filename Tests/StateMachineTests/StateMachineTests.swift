@@ -7,7 +7,7 @@ final class StateMachineTests: XCTestCase {
         case red
         case green
     }
-
+    
     enum Actions {
         case timer
     }
@@ -17,12 +17,12 @@ final class StateMachineTests: XCTestCase {
             initial: .green,
             context: nil,
             states: [
-                .green: [.on: .simple([.timer: .yellow])],
-                .yellow: [.on: .simple([.timer: .red])],
-                .red: [.on: .simple([.timer: .green])]
+                .green: [.on: [.timer: .simple(.yellow)]],
+                .yellow: [.on: [.timer: .simple(.red)]],
+                .red: [.on: [.timer: .simple(.green)]],
             ]
         )
-
+        
         let result = machine.transition(state: machine.initial, event: .timer)
         
         XCTAssertEqual(result, .yellow)
@@ -35,19 +35,28 @@ final class StateMachineTests: XCTestCase {
             context: nil,
             states: [
                 .green: [
-                    .on: .withContext(
-                        [.timer: (.yellow, { _ in ["color": "yellow"]})]
-                    )
+                    .on: [
+                        .timer: .withContext((
+                            target: .yellow,
+                            action: { _ in ["color": "yellow"]}
+                        ))
+                    ]
                 ],
                 .yellow: [
-                    .on: .withContext(
-                        [.timer: (.red, { _ in ["color": "red"]})]
-                    )
+                    .on: [
+                        .timer: .withContext((
+                            target: .red,
+                            action: { _ in ["color": "red"]}
+                        ))
+                    ]
                 ],
                 .red: [
-                    .on: .withContext(
-                        [.timer: (.green, { _ in ["color": "green"]})]
-                    )
+                    .on: [
+                        .timer: .withContext((
+                            target: .green,
+                            action: { _ in ["color": "green"]}
+                        ))
+                    ]
                 ],
             ]
         )
@@ -72,9 +81,9 @@ final class StateMachineTests: XCTestCase {
             initial: .green,
             context: nil,
             states: [
-                .green: [.on: .simple([.timer: .yellow])],
-                .yellow: [.on: .simple([.timer: .red])],
-                .red: [.on: .simple([.timer: .green])]
+                .green: [.on: [.timer: .simple(.yellow)]],
+                .yellow: [.on: [.timer: .simple(.red)]],
+                .red: [.on: [.timer: .simple(.green)]],
             ]
         )
         
@@ -105,21 +114,24 @@ final class StateMachineTests: XCTestCase {
             context: 0,
             states: [
                 .idle: [
-                    .on: .simple([.fetch: .loading])
+                    .on: [.fetch: .simple(.loading)]
                 ],
                 .loading: [
-                    .on: .simple([
-                        .resolve: .success,
-                        .reject: .failure
-                    ])
+                    .on: [
+                        .resolve: .simple(.success),
+                        .reject: .simple(.failure),
+                    ]
                 ],
                 .success: nil,
                 .cancelled: nil,
                 .failure: [
-                    .on: .withContext([
-                        .retry: (.loading, { $0 as! Int + 1 }),
-                        .reject: (.cancelled, { $0 })
-                    ])
+                    .on: [
+                        .retry: .withContext((
+                            target: .loading,
+                            action: { $0 as! Int + 1 }
+                        )),
+                        .reject: .simple(.cancelled)
+                    ]
                 ],
             ]
         )
@@ -154,7 +166,7 @@ final class StateMachineTests: XCTestCase {
         XCTAssertEqual(result7, .success)
         XCTAssertEqual(machine.currentState, .success)
     }
-
+    
     static var allTests = [
         ("testMachineWorks", testMachineWorks),
         ("testMachineSetsContext", testMachineSetsContext),
