@@ -85,7 +85,8 @@ final class StateMachineTests: XCTestCase {
                 .yellow: [.on([.timer: .simple(.red)])],
                 .red: [.on([.timer: .simple(.green)])],
             ],
-            actions: nil
+            actions: nil,
+            guards: nil
         )
         
         var machine = Machine(forChart: chart)
@@ -137,7 +138,8 @@ final class StateMachineTests: XCTestCase {
                     ])
                 ],
             ],
-            actions: nil
+            actions: nil,
+            guards: nil
         )
         
         var machine = Machine(forChart: fetchChart)
@@ -200,7 +202,8 @@ final class StateMachineTests: XCTestCase {
             actions: [
                 "increment": { $0 as! Int + 1 },
                 "decrement": { $0 as! Int - 1 }
-            ]
+            ],
+            guards: nil
         )
         
         var machine = Machine(forChart: chart)
@@ -216,10 +219,70 @@ final class StateMachineTests: XCTestCase {
         XCTAssertEqual(machine.context as! Int, 1)
     }
     
+    func testMachineGuards() {
+        enum CounterStates {
+            case active
+        }
+        enum CounterActions {
+            case increment
+            case decrement
+        }
+        
+        let chart: Chart<CounterStates, CounterActions> = (
+            initial: .active,
+            context: 0,
+            states: [
+                .active: [
+                    .on([
+                        .increment: .withActions((
+                            target: .active,
+                            actions: ["increment"]
+                        )),
+                        .decrement: .withActionsAndGuards((
+                            target: .active,
+                            actions: ["decrement"],
+                            cond: "notNegative"
+                        ))
+                    ])
+                ]
+            ],
+            actions: [
+                "increment": { $0 as! Int + 1 },
+                "decrement": { $0 as! Int - 1 }
+            ],
+            guards: [
+                "notNegative": { $0 as! Int >= 0 }
+            ]
+        )
+        
+        var machine = Machine(forChart: chart)
+        XCTAssertEqual(machine.context as! Int, 0)
+        
+        _ = machine.transition(state: .active, event: .increment)
+        XCTAssertEqual(machine.context as! Int, 1)
+        
+        _ = machine.transition(state: .active, event: .increment)
+        XCTAssertEqual(machine.context as! Int, 2)
+        
+        _ = machine.transition(state: .active, event: .decrement)
+        XCTAssertEqual(machine.context as! Int, 1)
+        
+        _ = machine.transition(state: .active, event: .decrement)
+        XCTAssertEqual(machine.context as! Int, 0)
+        
+        _ = machine.transition(state: .active, event: .decrement)
+        XCTAssertEqual(machine.context as! Int, 0)
+        
+        _ = machine.transition(state: .active, event: .increment)
+        XCTAssertEqual(machine.context as! Int, 1)
+    }
+    
     static var allTests = [
         ("testMachineWorks", testMachineWorks),
         ("testMachineSetsContext", testMachineSetsContext),
         ("testMachineInstatiationByChartConstant", testMachineInstatiationByChartConstant),
         ("testMachineFinishState", testMachineFinishState),
+        ("testMachineActions", testMachineActions),
+        ("testMachineGuards", testMachineGuards),
     ]
 }
