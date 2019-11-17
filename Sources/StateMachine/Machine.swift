@@ -135,7 +135,7 @@ extension Machine {
     }
     
     private mutating func handleWithContextEvent(
-        action: (OurChart.Context?) -> OurChart.Context
+        action: (OurChart.Context) -> OurChart.Context
     ) {
         guard let context = self.context else { return }
         self.context = action(context)

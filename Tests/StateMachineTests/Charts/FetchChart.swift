@@ -45,10 +45,9 @@ let fetchChart = Chart(
                 .retry: .withContext(
                     target: .loading,
                     action: { ctx in
-                        guard var ctx = ctx else {
-                            return ["count": 1]
-                        }
-                        return ["count": ctx["count"] as! Int + 1]
+                        var context = ctx
+                        context["count"] = context["count"] as! Int + 1
+                        return context
                 }),
                 .reject: .simple(.cancelled)
             ])

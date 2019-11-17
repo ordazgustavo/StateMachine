@@ -83,7 +83,7 @@ let guardedCounter: CounterChart = Chart(
     ],
     guards: [
         "notNegative": { ctx in
-            return ctx["count"] as! Int >= 0
+            ctx["count"] as! Int >= 0
         },
     ]
 )

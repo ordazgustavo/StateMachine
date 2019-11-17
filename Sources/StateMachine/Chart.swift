@@ -46,7 +46,7 @@ extension Chart {
 
     public enum VariadicState {
         case simple(S)
-        case withContext(target: S, action: (Context?) -> Context)
+        case withContext(target: S, action: (Context) -> Context)
         case withActions(target: S, actions: [String])
         case withGuards(target: S, cond: String)
         case withActionsAndGuards(target: S, actions: [String], cond: String)
