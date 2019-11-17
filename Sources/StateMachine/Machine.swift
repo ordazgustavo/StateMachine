@@ -1,87 +1,114 @@
 //
-//  File.swift
+//  Machine.swift
 //  
 //
 //  Created by Gustavo Ordaz on 11/9/19.
 //
 
+// MARK: Declarations
+
 public struct Machine<S:Hashable, A:Hashable> {
-    public var initial: S
-    public var context: Context
-    public var states: [S: Transition<S, A>?]
-    public var actions: [String: (Context) -> Any]?
-    public var guards: [String: (Context) -> Bool]?
+    public typealias OurChart = Chart<S, A>
+    
+    public var chart: OurChart
+    
+    public var initial: S {
+        get { chart.initial }
+    }
+    public var context: OurChart.Context?
     
     public var currentState: S
-    
     private var alive = true
-    
-    public init(
-        initial: S,
-        context: Context,
-        states: [S: Transition<S, A>?],
-        actions: [String: (Context) -> Any]? = nil,
-        guards: [String: (Context) -> Bool]? = nil
-    ) {
-        self.initial = initial
-        self.currentState = initial
-        self.context = context
-        self.states = states
-        self.actions = actions
-        self.guards = guards
-    }
-    
-    public init(forChart chart: Chart<S, A>) {
-        self.initial = chart.initial
-        self.currentState = chart.initial
+}
+
+// MARK: - init
+
+extension Machine {
+    public init(forChart chart: OurChart) {
+        self.chart = chart
         self.context = chart.context
-        self.states = chart.states
-        self.actions = chart.actions
-        self.guards = chart.guards
+        self.currentState = chart.initial
     }
-    
+}
+
+// MARK: - Transition
+
+extension Machine {
     public mutating func transition(state: S, event actionType: A) -> S {
-        if !alive {
+        guard alive != false else { return self.currentState }
+        
+        guard let transitions = getTransitions(from: state) else {
             return self.currentState
         }
         
-        guard let transitions = self.states[state]! else {
+        for case let .type(type) in transitions where type == "final" {
             self.alive = false
-            return state
+            return self.currentState
         }
         
-        for case let .type(type) in transitions {
-            if type == "final" {
-                self.alive = false
-                break
+        for case let .on(event) in transitions {
+            guard let target = event[actionType] else {
+                return self.currentState
             }
+            setState(from: target)
+            break
         }
         
-        var event: Event<S, A>?
-        for case let .on(e) in transitions {
-            event = e
+        return self.currentState
+    }
+    
+    public mutating func transition(from state: S, with actionType: A) {
+        guard alive != false else { return }
+        
+        guard let transitions = getTransitions(from: state) else { return }
+        
+        for case let .type(type) in transitions where type == "final" {
+            self.alive = false
+            return
         }
         
-        guard let target = event![actionType] else {
-            return state
+        for case let .on(event) in transitions {
+            guard let target = event[actionType] else { return }
+            setState(from: target)
+            break
+        }
+    }
+}
+
+// MARK: - Helpers
+
+extension Machine {
+    private mutating func getTransitions(
+        from state: S
+    ) -> [OurChart.TransitionTypes]? {
+        guard let transitions = self.chart.states[state] else {
+            self.alive = false
+            return nil
         }
         
+        guard let availableTransitions = transitions else {
+            self.alive = false
+            return nil
+        }
+        
+        return availableTransitions
+    }
+    
+    private mutating func setState(from target: OurChart.VariadicState) {
         switch target {
         case .simple(let simple):
             self.currentState = simple
-            return self.currentState
+            break
             
         case .withContext(let (tgt, action)):
             handleWithContextEvent(action: action)
-            
             self.currentState = tgt
-            return self.currentState
+            break
             
         case .withActions(let (tgt, actions)):
             handleWithActionsEvent(actions: actions)
-            
             self.currentState = tgt
-            return self.currentState
+            break
             
         case .withGuards(let (tgt, cond)):
             let shouldUpdate = handleWithGuardsEvent(
@@ -92,7 +119,7 @@ public struct Machine<S:Hashable, A:Hashable> {
             if shouldUpdate {
                 self.currentState = tgt
             }
-            return self.currentState
+            break
             
         case .withActionsAndGuards(let (tgt, actions, cond)):
             let shouldUpdate = handleWithActionsAndGuardsEvent(
@@ -103,32 +130,38 @@ public struct Machine<S:Hashable, A:Hashable> {
             if shouldUpdate {
                 self.currentState = tgt
             }
-            return self.currentState
+            break
         }
     }
     
-    private mutating func handleWithContextEvent(action: (Any?) -> Any) {
-        self.context = action(self.context)
+    private mutating func handleWithContextEvent(
+        action: (OurChart.Context?) -> OurChart.Context
+    ) {
+        guard let context = self.context else { return }
+        self.context = action(context)
     }
     
     private mutating func handleWithActionsEvent(actions: [String]) {
-        guard let ourActions = self.actions else { return }
+        guard let ourActions = self.chart.actions else { return }
         
         for action in actions {
             guard let act = ourActions[action] else { continue }
-            self.context = act(self.context)
+            guard let context = self.context else { continue }
+            self.context = act(context)
         }
     }
     
     private mutating func handleWithGuardsEvent(
-        context: Context,
+        context: OurChart.Context?,
         cond: String
     ) -> Bool {
         /// Allow to update the given state if the user:
         /// 1. Needs guards but did not provide a guards array
-        guard let ourGuards = self.guards else { return true }
+        guard let ourGuards = self.chart.guards else { return true }
         /// 2. Provided guards but we can't find the selected guard
         guard let g = ourGuards[cond] else { return true }
+        /// 3. If we don't have a context to work with, bailout
+        guard let context = context else { return true }
         
         return g(context)
     }
@@ -137,23 +170,20 @@ public struct Machine<S:Hashable, A:Hashable> {
         actions: [String],
         cond: String
     ) -> Bool {
-        guard let ourActions = self.actions else { return true }
+        guard let ourActions = self.chart.actions else { return true }
         
-        /// Firs we validate that we can make all the actions
-        /// We don't want to make partial updates to the context
-        var valid = true
+        /// First we validate that we can make all the actions
+        /// We don't want to make partial updates to the context]
         for action in actions {
             guard let act = ourActions[action] else { continue }
-            let result = act(self.context)
+            guard let context = self.context else { continue }
+            let result = act(context)
             let guarded = handleWithGuardsEvent(context: result, cond: cond)
             if !guarded {
-                valid = false
-                break
+                /// Stop execution if we have a non guarded update
+                return false
             }
         }
-        
-        /// Stop execution if we have a non guarded update
-        guard valid else { return false }
         
         handleWithActionsEvent(actions: actions)
         
