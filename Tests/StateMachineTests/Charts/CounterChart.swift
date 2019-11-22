@@ -16,12 +16,14 @@ enum CounterActions {
     case decrement
 }
 
-typealias CounterChart = Chart<CounterStates, CounterActions>
+typealias CounterContext = (Int)
+
+typealias CounterChart = Chart<CounterStates, CounterActions, CounterContext>
 
 let counterChart: CounterChart = Chart(
     id: "counter",
     initial: .active,
-    context: ["count": 0],
+    context: (0),
     states: [
         .active: [
             .on([
@@ -37,23 +39,15 @@ let counterChart: CounterChart = Chart(
         ]
     ],
     actions: [
-        "increment": { ctx in
-            var context = ctx
-            context["count"] = context["count"] as! Int + 1
-            return context
-        },
-        "decrement": { ctx in
-            var context = ctx
-            context["count"] = context["count"] as! Int - 1
-            return context
-        }
+        "increment": { (count) in (count + 1) },
+        "decrement": { (count) in (count - 1) }
     ]
 )
 
 let guardedCounter: CounterChart = Chart(
     id: "counter",
     initial: .active,
-    context: ["count": 0],
+    context: (0),
     states: [
         .active: [
             .on([
@@ -70,20 +64,10 @@ let guardedCounter: CounterChart = Chart(
         ]
     ],
     actions: [
-        "increment": { ctx in
-            var context = ctx
-            context["count"] = context["count"] as! Int + 1
-            return context
-        },
-        "decrement": { ctx in
-            var context = ctx
-            context["count"] = context["count"] as! Int - 1
-            return context
-        }
+        "increment": { (count) in (count + 1) },
+        "decrement": { (count) in (count - 1) }
     ],
     guards: [
-        "notNegative": { ctx in
-            ctx["count"] as! Int >= 0
-        },
+        "notNegative": { (count) in count >= 0 },
     ]
 )

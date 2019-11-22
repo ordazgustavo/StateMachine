@@ -20,17 +20,13 @@ final class StateMachineTests: XCTestCase {
         
         XCTAssertNotNil(machine.context)
         
-        guard let ctx = machine.context as? [String: String] else {
-            XCTFail("Failed to typecast context.")
-            return
-        }
-        XCTAssertEqual(ctx["color"], "yellow")
+        XCTAssertEqual(machine.context, "yellow")
     }
     
     func testMachineFinishState() {
         var machine = Machine(forChart: fetchChart)
         
-        XCTAssertEqual(machine.context?["count"] as! Int, 0)
+        XCTAssertEqual(machine.context, 0)
         
         let result = machine.transition(state: .idle, event: .fetch)
         XCTAssertEqual(result, .loading)
@@ -40,14 +36,14 @@ final class StateMachineTests: XCTestCase {
         
         let result3 = machine.transition(state: result2, event: .retry)
         XCTAssertEqual(result3, .loading)
-        XCTAssertEqual(machine.context?["count"] as! Int, 1)
+        XCTAssertEqual(machine.context, 1)
         
         let result4 = machine.transition(state: result3, event: .reject)
         XCTAssertEqual(result4, .failure)
         
         let result5 = machine.transition(state: result4, event: .retry)
         XCTAssertEqual(result5, .loading)
-        XCTAssertEqual(machine.context?["count"] as! Int, 2)
+        XCTAssertEqual(machine.context, 2)
         
         let result6 = machine.transition(state: result5, event: .resolve)
         XCTAssertEqual(result6, .success)
@@ -61,39 +57,39 @@ final class StateMachineTests: XCTestCase {
     
     func testMachineActions() {
         var machine = Machine(forChart: counterChart)
-        XCTAssertEqual(machine.context?["count"] as! Int, 0)
+        XCTAssertEqual(machine.context, 0)
         
         machine.transition(from: .active, with: .increment)
-        XCTAssertEqual(machine.context?["count"] as! Int, 1)
+        XCTAssertEqual(machine.context, 1)
         
         machine.transition(from: .active, with: .increment)
-        XCTAssertEqual(machine.context?["count"] as! Int, 2)
+        XCTAssertEqual(machine.context, 2)
         
         machine.transition(from: .active, with: .decrement)
-        XCTAssertEqual(machine.context?["count"] as! Int, 1)
+        XCTAssertEqual(machine.context, 1)
     }
     
     func testMachineGuards() {
         var machine = Machine(forChart: guardedCounter)
-        XCTAssertEqual(machine.context?["count"] as! Int, 0)
+        XCTAssertEqual(machine.context, 0)
         
         machine.transition(from: .active, with: .increment)
-        XCTAssertEqual(machine.context?["count"] as! Int, 1)
+        XCTAssertEqual(machine.context, 1)
         
         machine.transition(from: .active, with: .increment)
-        XCTAssertEqual(machine.context?["count"] as! Int, 2)
+        XCTAssertEqual(machine.context, 2)
         
         machine.transition(from: .active, with: .decrement)
-        XCTAssertEqual(machine.context?["count"] as! Int, 1)
+        XCTAssertEqual(machine.context, 1)
         
         machine.transition(from: .active, with: .decrement)
-        XCTAssertEqual(machine.context?["count"] as! Int, 0)
+        XCTAssertEqual(machine.context, 0)
         
         machine.transition(from: .active, with: .decrement)
-        XCTAssertEqual(machine.context?["count"] as! Int, 0)
+        XCTAssertEqual(machine.context, 0)
         
         machine.transition(from: .active, with: .increment)
-        XCTAssertEqual(machine.context?["count"] as! Int, 1)
+        XCTAssertEqual(machine.context, 1)
     }
     
     static var allTests = [

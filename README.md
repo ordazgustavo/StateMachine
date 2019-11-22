@@ -1,6 +1,6 @@
 # StateMachine
 
-**This is still a work in progress**
+**⚠️⚠️⚠️ This is still a work in progress ⚠️⚠️⚠️**
 
 ## Usage
 
@@ -26,7 +26,7 @@ enum LightActions {
 let chart = Chart(
     id: "lights",
     initial: LightStates.green,
-    context: nil,
+    context: (),
     states: [
         .green: [
             .on([LightActions.timer: .simple(.yellow)])
@@ -45,26 +45,16 @@ We use `LightStates.green` and `LightActions.timer` here to take advantage of
 swift's type inference but we could also do:
 
 ```swift
-let chart = Chart<LightStates, LightActions>(
+let chart = Chart<LightStates, LightActions, ()>(
     id: "lights",
     initial: .green,
-    context: nil,
+    context: (),
     states: [
         .green: [.on([.timer: .simple(.yellow)])],
         .yellow: [.on([.timer: .simple(.red)])],
         .red: [.on([.timer: .simple(.green)])],
     ]
 )
-```
-
-or... if you need multiple charts with the same actions and states:
-
-```swift
-typealias LightChart = Chart<LightStates, LightActions>
-
-let simpleLightChart: LightChart = Chart( ... )
-
-let complexLightChart: LightChart = Chart( ... )
 ```
 
 ### Creating a Machine
@@ -116,7 +106,7 @@ enum FetchActions {
 let fetchChart = Chart(
     id: "fetch",
     initial: FetchStates.idle,
-    context: ["count": 0],
+    context: (0),
     states: [
         .idle: [
             .on([FetchActions.fetch: .simple(.loading)])
@@ -136,11 +126,7 @@ let fetchChart = Chart(
             .on([
                 .retry: .withContext(
                     target: .loading,
-                    action: { ctx in
-                        var context = ctx
-                        context["count"] = context["count"] as! Int + 1
-                        return context
-                }),
+                    action: { (count) in (count + 1) }),
                 .reject: .simple(.cancelled)
             ])
         ],
@@ -167,7 +153,7 @@ For reusing actions we can declare a dictionary like so:
 let fetchChart = Chart(
     id: "fetch",
     initial: FetchStates.idle,
-    context: ["count": 0],
+    context: (0),
     states: [
         .idle: [
             .on([FetchActions.fetch: .simple(.loading)])
@@ -194,11 +180,7 @@ let fetchChart = Chart(
         ],
     ],
     actions: [
-        "incrementCounter": { ctx in
-            var context = ctx
-            context["count"] = context["count"] as! Int + 1
-            return context
-        }
+        "incrementCounter": { (count) in (count + 1) }
     ]
 )
 ```
@@ -220,7 +202,7 @@ enum CounterActions {
 let guardedCounter = Chart(
     id: "counter",
     initial: CounterStates.active,
-    context: ["count": 0],
+    context: (0),
     states: [
         .active: [
             .on([
@@ -237,26 +219,25 @@ let guardedCounter = Chart(
         ]
     ],
     actions: [
-        "increment": { ctx in
-            var context = ctx
-            context["count"] = context["count"] as! Int + 1
-            return context
-        },
-        "decrement": { ctx in
-            var context = ctx
-            context["count"] = context["count"] as! Int - 1
-            return context
-        }
+        "increment": { (count) in (count + 1) },
+        "decrement": { (count) in (count - 1) }
     ],
     guards: [
-        "notNegative": { ctx in
-            ctx["count"] as! Int >= 0
-        },
+        "notNegative": { (count) in count >= 0 },
     ]
 )
 ```
+
 So, guards ar functions that receive the current context and return a `Bool` where `true`
 represents a valid transition and `false` the other way.
+
+### Context
+
+As I said before, Context allows us to hold values that can be mutated by Actions, this is
+known as [extended state](https://en.wikipedia.org/wiki/UML_state_machine#Extended_states).
+
+Context can hold any type of value but, is muche preferred to use tuples to avoid typecasting
+when you need it to have many values.
 
 ## Credits
 

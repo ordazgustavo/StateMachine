@@ -25,7 +25,7 @@ enum FetchActions {
 let fetchChart = Chart(
     id: "fetch",
     initial: FetchStates.idle,
-    context: ["count": 0],
+    context: (0),
     states: [
         .idle: [
             .on([FetchActions.fetch: .simple(.loading)])
@@ -44,11 +44,7 @@ let fetchChart = Chart(
             .on([
                 .retry: .withContext(
                     target: .loading,
-                    action: { ctx in
-                        var context = ctx
-                        context["count"] = context["count"] as! Int + 1
-                        return context
-                }),
+                    action: { (count) in (count + 1) }),
                 .reject: .simple(.cancelled)
             ])
         ],

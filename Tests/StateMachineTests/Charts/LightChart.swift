@@ -20,7 +20,7 @@ enum LightActions {
 let simpleLightChart = Chart(
     id: "lights",
     initial: LightStates.green,
-    context: nil,
+    context: (),
     states: [
         .green: [.on([LightActions.timer: .simple(.yellow)])],
         .yellow: [.on([.timer: .simple(.red)])],
@@ -31,13 +31,13 @@ let simpleLightChart = Chart(
 let lightChart = Chart(
     id: "lights",
     initial: LightStates.green,
-    context: ["color": "green"],
+    context: ("green"),
     states: [
         .green: [
             .on([
                 LightActions.timer: .withContext(
                     target: .yellow,
-                    action: { _ in return ["color": "yellow"] }
+                    action: { _ in ("yellow") }
                 )
             ])
         ],
@@ -45,7 +45,7 @@ let lightChart = Chart(
             .on([
                 .timer: .withContext(
                     target: .red,
-                    action: { _ in return ["color": "red"] }
+                    action: { _ in ("red") }
                 )
             ])
         ],
@@ -53,7 +53,7 @@ let lightChart = Chart(
             .on([
                 .timer: .withContext(
                     target: .green,
-                    action: { _ in return ["color": "green"] }
+                    action: { _ in ("green") }
                 )
             ])
         ],

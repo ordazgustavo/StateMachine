@@ -7,17 +7,13 @@
 
 // MARK: Declarations
 
-public struct Machine<S:Hashable, A:Hashable> {
-    public typealias OurChart = Chart<S, A>
+public struct Machine<State:Hashable, Actions:Hashable, Context> {
+    public typealias OurChart = Chart<State, Actions, Context>
     
     public var chart: OurChart
-    
-    public var initial: S {
-        get { chart.initial }
-    }
-    public var context: OurChart.Context?
-    
-    public var currentState: S
+    public let initial: State
+    public var context: Context
+    public var currentState: State
     private var alive = true
 }
 
@@ -27,6 +23,7 @@ extension Machine {
     public init(forChart chart: OurChart) {
         self.chart = chart
         self.context = chart.context
+        self.initial = chart.initial
         self.currentState = chart.initial
     }
 }
@@ -34,7 +31,9 @@ extension Machine {
 // MARK: - Transition
 
 extension Machine {
-    public mutating func transition(state: S, event actionType: A) -> S {
+    public mutating func transition(
+        state: State,
+        event actionType: Actions) -> State {
         guard alive != false else { return self.currentState }
         
         guard let transitions = getTransitions(from: state) else {
@@ -57,7 +56,9 @@ extension Machine {
         return self.currentState
     }
     
-    public mutating func transition(from state: S, with actionType: A) {
+    public mutating func transition(
+        from state: State,
+        with actionType: Actions) {
         guard alive != false else { return }
         
         guard let transitions = getTransitions(from: state) else { return }
@@ -79,8 +80,7 @@ extension Machine {
 
 extension Machine {
     private mutating func getTransitions(
-        from state: S
-    ) -> [OurChart.TransitionTypes]? {
+        from state: State) -> [OurChart.TransitionTypes]? {
         guard let transitions = self.chart.states[state] else {
             self.alive = false
             return nil
@@ -135,10 +135,8 @@ extension Machine {
     }
     
     private mutating func handleWithContextEvent(
-        action: (OurChart.Context) -> OurChart.Context
-    ) {
-        guard let context = self.context else { return }
-        self.context = action(context)
+        action: OurChart.ActionHandler) {
+        self.context = action(self.context)
     }
     
     private mutating func handleWithActionsEvent(actions: [String]) {
@@ -146,38 +144,32 @@ extension Machine {
         
         for action in actions {
             guard let act = ourActions[action] else { continue }
-            guard let context = self.context else { continue }
-            self.context = act(context)
+            self.context = act(self.context)
         }
     }
     
-    private mutating func handleWithGuardsEvent(
-        context: OurChart.Context?,
-        cond: String
-    ) -> Bool {
+    private func handleWithGuardsEvent(
+        context: Context,
+        cond: String) -> Bool {
         /// Allow to update the given state if the user:
         /// 1. Needs guards but did not provide a guards array
         guard let ourGuards = self.chart.guards else { return true }
         /// 2. Provided guards but we can't find the selected guard
         guard let g = ourGuards[cond] else { return true }
-        /// 3. If we don't have a context to work with, bailout
-        guard let context = context else { return true }
         
         return g(context)
     }
     
     private mutating func handleWithActionsAndGuardsEvent(
         actions: [String],
-        cond: String
-    ) -> Bool {
+        cond: String) -> Bool {
         guard let ourActions = self.chart.actions else { return true }
         
         /// First we validate that we can make all the actions
         /// We don't want to make partial updates to the context]
         for action in actions {
             guard let act = ourActions[action] else { continue }
-            guard let context = self.context else { continue }
-            let result = act(context)
+            let result = act(self.context)
             let guarded = handleWithGuardsEvent(context: result, cond: cond)
             if !guarded {
                 /// Stop execution if we have a non guarded update
